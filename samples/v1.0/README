@@ -1,0 +1,1 @@
+~/bin/measureAggregateRsquared --validation ALL.20130523.snps_indels.CGI.genotypes.nonGL.inRef.inGL.head1000.gen.gz --imputed ALL.20130523.snps_indels.CGI.genotypes.nonGL.inRef.inGL.inChip.impute2.notInChip.head500.gen.gz --sample CGI2.ILLU1M.sample --freq ALL.chr20.unionAC10NM.founders.B7.R1.P8.M30.K100.W500kb.inInt.inTruth.GL.head1000.freqs --bin olivierBins.txt --output test

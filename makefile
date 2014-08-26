@@ -72,7 +72,7 @@ clean:
 	rm -f obj/*.o $(EFILE)
 
 test:
-	cp $(EFILE) ~/$(EFILE).v10
+	perl t/runtests.pl
 
 oxford:
 	cp $(EFILE) ~/bin/.

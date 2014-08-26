@@ -85,14 +85,14 @@ int main(int argc, char **argv) {
   string buffer;
   vector<string> tok;
 
-  char *validation = NULL;
-  char *imputed = NULL;
-  char *sample = NULL;
+  char *validation = nullptr;
+  char *imputed = nullptr;
+  char *sample = nullptr;
   vector<char *> exclude;
   vector<char *> include;
-  char *freq = NULL;
-  char *output = NULL;
-  char *bin = NULL;
+  char *freq = nullptr;
+  char *output = nullptr;
+  char *bin = nullptr;
 
   // reading arguments
   for (int a = 1; a < argc; a++) {
@@ -124,19 +124,19 @@ int main(int argc, char **argv) {
 
   // checking arguments
   cout << endl;
-  if (validation != NULL)
+  if (validation != nullptr)
     cout << "Validation:\t" << validation << endl;
   else {
     cout << "Argument --validation missing!" << endl;
     exit(0);
   }
-  if (imputed != NULL)
+  if (imputed != nullptr)
     cout << "Imputed:\t" << imputed << endl;
   else {
     cout << "Argument --imputed missing!" << endl;
     exit(0);
   }
-  if (sample != NULL)
+  if (sample != nullptr)
     cout << "Sample:\t\t" << sample << endl;
   else {
     cout << "Argument --sample missing!" << endl;
@@ -146,19 +146,19 @@ int main(int argc, char **argv) {
     cout << "ExcludeSites:\t" << exclude[e] << endl;
   for (int e = 0; e < include.size(); e++)
     cout << "IncludeSites:\t" << include[e] << endl;
-  if (freq != NULL)
+  if (freq != nullptr)
     cout << "Frequencies:\t" << freq << endl;
   else {
     cout << "Argument --freq missing!" << endl;
     exit(0);
   }
-  if (bin != NULL)
+  if (bin != nullptr)
     cout << "Bins:\t\t" << bin << endl;
   else {
     cout << "Argument --bin missing!" << endl;
     exit(0);
   }
-  if (output != NULL)
+  if (output != nullptr)
     cout << "Output:\t\t" << output << endl;
   else {
     cout << "Argument --output missing!" << endl;
@@ -312,14 +312,9 @@ int main(int argc, char **argv) {
     assert(tok.size() == (n_ind * 3 + 5));
 
     site *s = SM.get(tok[0], atoi(tok[2].c_str()), tok[3], tok[4]);
-    if (s != NULL) {
-      if (tok[0] == "---") {
-        s->flg = true;
-        n_imputed++;
-      } else {
-        s->flg = false;
-        n_genotyped++;
-      }
+    if (s != nullptr) {
+      s->flg = true;
+      n_imputed++;
       for (int i = 5; i < tok.size(); i += 3)
         DI[s->idx][(i - 5) / 3] =
             atof(tok[i + 1].c_str()) + 2 * atof(tok[i + 2].c_str());
