@@ -1,9 +1,15 @@
 #include "utils.h"
+#include <unordered_map>
+#include <unordered_set>
+#include <boost/functional/hash.hpp>
 
-static_assert(__cplusplus >= 201103L, "This code expects to be compiled with a c++11 compatible compiler");
+static_assert(
+    __cplusplus >= 201103L,
+    "This code expects to be compiled with a c++11 compatible compiler");
 
 class site {
 public:
+  string chr;
   int pos;
   string ref, alt;
   int idx;
@@ -11,7 +17,8 @@ public:
   int type;
   vector<float> frq;
 
-  site(int p, string &r, string &a, int i) {
+  site(string &c, int p, string &r, string &a, int i) {
+    chr = c;
     pos = p;
     ref = r;
     alt = a;
@@ -23,7 +30,7 @@ public:
       type = 0;
   }
 
-  bool strand(string &r, string &a) {
+  bool strand(const string &r, const string &a) {
     if (ref == r && alt == a)
       return true;
     else
@@ -34,20 +41,32 @@ public:
 class site_map {
 public:
   vector<site *> VS;
-  multimap<int, site *> MS;
+
+  // let's store all sites by chrom and then by position
+  unordered_map<string, multimap<int, site *> > MS;
 
   site_map() {}
 
   void push(site *s) {
     VS.push_back(s);
-    MS.insert(pair<int, site *>(s->pos, s));
+    auto got = MS.find(s->chr);
+    if (got == MS.end())
+      got = MS.insert(make_pair(s->chr, multimap<int, site *>())).first;
+
+    got->second.insert(pair<int, site *>(s->pos, s));
   }
 
-  site *get(int pos, string &ref, string &alt) {
-    pair<multimap<int, site *>::iterator, multimap<int, site *>::iterator> ret =
-        MS.equal_range(pos);
-    for (multimap<int, site *>::iterator it = ret.first; it != ret.second;
-         ++it) {
+  site *get(const string &chr, int pos, const string &ref, const string &alt) {
+
+    // grab the correct map based on chromosome input
+    auto chrMMapItr = MS.find(chr);
+    if (chrMMapItr == MS.end())
+      throw runtime_error("Could not find chromosome: " + chr);
+
+    // grab the positions on the chromosome that match
+    auto ret = chrMMapItr->second.equal_range(pos);
+
+    for (auto it = ret.first; it != ret.second; ++it) {
       if (it->second->strand(ref, alt))
         return it->second;
     }
@@ -148,23 +167,35 @@ int main(int argc, char **argv) {
   cout << endl;
 
   // Reading Exclusion
-  set<int> EXC;
+  unordered_set<pair<string, int>, boost::hash<std::pair<string, int> > > EXC;
   for (int e = 0; e < exclude.size(); e++) {
     cout << "Reading sites to exclude in [" << exclude[e] << "]" << endl;
     ifile fde(exclude[e]);
-    while (getline(fde, buffer, '\n'))
-      EXC.insert(atoi(buffer.c_str()));
+    while (getline(fde, buffer, '\n')) {
+      tok = sutils::tokenize(buffer, "\t");
+      if (tok.size() != 2)
+        throw runtime_error(
+            "--include file " + string(include[e]) +
+            " does not contain sites in 'chrom\tposition' format");
+      EXC.insert(pair<string, int>(tok[0], stoi(tok[1])));
+    }
     fde.close();
     cout << "  * #sites=" << EXC.size() << endl;
   }
 
   // Reading Inclusion
-  set<int> INC;
+  unordered_set<pair<string, int>, boost::hash<std::pair<string, int> > > INC;
   for (int e = 0; e < include.size(); e++) {
     cout << "Reading sites to include in [" << include[e] << "]" << endl;
     ifile fdi(include[e]);
-    while (getline(fdi, buffer, '\n'))
-      INC.insert(atoi(buffer.c_str()));
+    while (getline(fdi, buffer, '\n')) {
+      tok = sutils::tokenize(buffer, "\t");
+      if (tok.size() != 2)
+        throw runtime_error(
+            "--include file " + string(include[e]) +
+            " does not contain sites in 'chrom\tposition' format");
+      INC.insert(pair<string, int>(tok[0], stoi(tok[1])));
+    }
     fdi.close();
     cout << "  * #sites=" << INC.size() << endl;
   }
@@ -215,13 +246,14 @@ int main(int argc, char **argv) {
     tok = sutils::tokenize(buffer, " ");
     assert(tok.size() == (n_ind * 3 + 5));
     int pos = atoi(tok[2].c_str());
+    string chr = tok[0];
 
-    set<int>::iterator itE = EXC.find(pos);
-    set<int>::iterator itI = INC.find(pos);
+    auto itE = EXC.find(make_pair(chr, pos));
+    auto itI = INC.find(make_pair(chr, pos));
 
-    site *s = new site(pos, tok[3], tok[4], SM.size());
-    if ((INC.size() > 0 && itI == INC.end()) ||
-        (EXC.size() > 0 && itE != EXC.end()))
+    site *s = new site(chr, pos, tok[3], tok[4], SM.size());
+    if ((!INC.empty() && itI == INC.end()) ||
+        (!EXC.empty() && itE != EXC.end()))
       s->flg = false;
     SM.push(s);
     DV.push_back(vector<float>(n_ind, -1.0));
@@ -279,7 +311,7 @@ int main(int argc, char **argv) {
     tok = sutils::tokenize(buffer, " ");
     assert(tok.size() == (n_ind * 3 + 5));
 
-    site *s = SM.get(atoi(tok[2].c_str()), tok[3], tok[4]);
+    site *s = SM.get(tok[0], atoi(tok[2].c_str()), tok[3], tok[4]);
     if (s != NULL) {
       if (tok[0] == "---") {
         s->flg = true;
