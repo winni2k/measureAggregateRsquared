@@ -2,14 +2,14 @@
 CXX=g++
 
 #compiler flags
-COPTI= -O3
+COPTI= -O3 -std=c++11
 CDEBG= -g
 CWARN= -Wall -Wextra -Wno-sign-compare
 CBAMH= -D_LIBBAM
 CSHV1=
 
 #linker flags
-LOPTI= -O3
+LOPTI= -O3 -std=c++11
 LDEBG= -g
 LSTDD= -lm -lpthread -lboost_iostreams -lboost_program_options
 LSTDS= -Wl,-Bstatic -lboost_iostreams -lz -lbz2 -Wl,-Bdynamic -lm -lpthread
@@ -70,12 +70,12 @@ obj/%.o: %.cpp $(HFILE)
 
 clean: 
 	rm -f obj/*.o $(EFILE)
-	
+
 test:
 	cp $(EFILE) ~/$(EFILE).v10
 
 oxford:
 	cp $(EFILE) ~/bin/.
-	
+
 install:
 	cp $(EFILE) /usr/local/bin/.

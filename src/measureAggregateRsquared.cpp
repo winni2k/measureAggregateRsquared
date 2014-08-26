@@ -1,5 +1,7 @@
 #include "utils.h"
 
+static_assert(__cplusplus >= 201103L, "This code expects to be compiled with a c++11 compatible compiler");
+
 class site {
 public:
   int pos;
@@ -49,7 +51,7 @@ public:
       if (it->second->strand(ref, alt))
         return it->second;
     }
-    return false;
+    return nullptr;
   }
 
   int size() { return VS.size(); }
