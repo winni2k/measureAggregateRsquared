@@ -3,14 +3,14 @@ CXX=g++
 
 #compiler flags
 COPTI= -O3 -std=c++11
-CDEBG= -g
+CDEBG= -g -std=c++11
 CWARN= -Wall -Wextra -Wno-sign-compare
 CBAMH= -D_LIBBAM
 CSHV1=
 
 #linker flags
 LOPTI= -O3 -std=c++11
-LDEBG= -g
+LDEBG= -g -std=c++11
 LSTDD= -lm -lpthread -lboost_iostreams -lboost_program_options
 LSTDS= -Wl,-Bstatic -lboost_iostreams -lz -lbz2 -Wl,-Bdynamic -lm -lpthread
 LCL3S= -Wl,-Bstatic -lz -lbz2 -Wl,-Bdynamic -lm -lpthread
@@ -49,6 +49,12 @@ dynamic: LFLAG=$(LOPTI) $(LSTDD)
 dynamic: IFLAG=$(ISTDP)
 dynamic: $(EFILE)
 
+# testing release
+test: CFLAG=$(CDEBG) $(CWARN) $(CSHV1) $(CDEBG)
+test: LFLAG=$(LDEBG) $(LSTDD)
+test: IFLAG=$(ISTDP)
+test: $(EFILE)
+
 #static release
 static: CFLAG=$(COPTI) $(CWARN) $(CSHV1)
 static: LFLAG=$(LOPTI) $(LSTDS)
@@ -71,7 +77,7 @@ obj/%.o: %.cpp $(HFILE)
 clean: 
 	rm -f obj/*.o $(EFILE)
 
-test:
+test: $(EFILE)
 	perl t/runtests.pl
 
 oxford:

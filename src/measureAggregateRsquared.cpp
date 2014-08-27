@@ -5,7 +5,7 @@
 
 static_assert(
     __cplusplus >= 201103L,
-    "This code expects to be compiled with a c++11 compatible compiler");
+    "This code needs to be compiled with a c++11 compatible compiler");
 
 class site {
 public:
