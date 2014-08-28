@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <boost/functional/hash.hpp>
+#include <version.h>
 
 static_assert(
     __cplusplus >= 201103L,
@@ -82,6 +83,9 @@ void toLowerCase(string &str) {
 }
 
 int main(int argc, char **argv) {
+
+  cout << "measureAggregateRsquared v" << VERSION_MAJOR << "." << VERSION_MINOR
+       << endl;
   string buffer;
   vector<string> tok;
 
@@ -91,6 +95,7 @@ int main(int argc, char **argv) {
   vector<char *> exclude;
   vector<char *> include;
   char *freq = nullptr;
+  char *fmap = nullptr;
   char *output = nullptr;
   char *bin = nullptr;
 
@@ -114,6 +119,9 @@ int main(int argc, char **argv) {
     if (strcmp(argv[a], "--freq") == 0) {
       freq = argv[a + 1];
     };
+    if (strcmp(argv[a], "--fmap") == 0) {
+      fmap = argv[a + 1];
+    };
     if (strcmp(argv[a], "--output") == 0) {
       output = argv[a + 1];
     };
@@ -127,42 +135,49 @@ int main(int argc, char **argv) {
   if (validation != nullptr)
     cout << "Validation:\t" << validation << endl;
   else {
-    cout << "Argument --validation missing!" << endl;
-    exit(0);
+    cerr << "Argument --validation missing!" << endl;
+    exit(1);
   }
   if (imputed != nullptr)
     cout << "Imputed:\t" << imputed << endl;
   else {
-    cout << "Argument --imputed missing!" << endl;
-    exit(0);
+    cerr << "Argument --imputed missing!" << endl;
+    exit(1);
   }
   if (sample != nullptr)
     cout << "Sample:\t\t" << sample << endl;
   else {
-    cout << "Argument --sample missing!" << endl;
-    exit(0);
+    cerr << "Argument --sample missing!" << endl;
+    exit(1);
   }
   for (int e = 0; e < exclude.size(); e++)
     cout << "ExcludeSites:\t" << exclude[e] << endl;
   for (int e = 0; e < include.size(); e++)
     cout << "IncludeSites:\t" << include[e] << endl;
-  if (freq != nullptr)
+
+  if (freq != nullptr && fmap != nullptr) {
+    cerr << "Please only specify --freq or --fmap";
+    exit(1);
+  } else if (freq != nullptr)
     cout << "Frequencies:\t" << freq << endl;
+  else if (fmap != nullptr)
+      cout << "Frequencies:\t" << fmap << endl;
   else {
-    cout << "Argument --freq missing!" << endl;
-    exit(0);
+    cerr << "Argument --freq or --fmap missing!" << endl;
+    exit(1);
   }
+
   if (bin != nullptr)
     cout << "Bins:\t\t" << bin << endl;
   else {
-    cout << "Argument --bin missing!" << endl;
-    exit(0);
+    cerr << "Argument --bin missing!" << endl;
+    exit(1);
   }
   if (output != nullptr)
     cout << "Output:\t\t" << output << endl;
   else {
-    cout << "Argument --output missing!" << endl;
-    exit(0);
+    cerr << "Argument --output missing!" << endl;
+    exit(1);
   }
   cout << endl;
 
@@ -213,8 +228,8 @@ int main(int argc, char **argv) {
       idx_pop = t;
   }
   if (idx_pop < 0) {
-    cout << "You must have a pop column in the sample file" << endl;
-    exit(0);
+    cerr << "You must have a pop column in the sample file" << endl;
+    exit(1);
   } else
     cout << "  * population column: " << idx_pop << endl;
   getline(fds, buffer, '\n');
@@ -265,40 +280,72 @@ int main(int argc, char **argv) {
         DV.back()[(i - 5) / 3] = g1 + 2 * g2;
     }
     if (i_site % 1000 == 0) {
-      cerr << "\r" << i_site;
-      cerr.flush();
+        cout << "\r" << i_site;
     }
     i_site++;
   }
-  cerr << "\r" << i_site << endl;
+  cout << "\r" << i_site << endl;
   cout << "  * #site=" << SM.size() << endl;
   fdv.close();
 
   // Reading Frequencies
   vector<string> P;
-  cout << "Reading frequencies in [" << freq << "]" << endl;
-  ifile fdf(freq);
-  getline(fdf, buffer, '\n');
-  tok = sutils::tokenize(buffer, " ");
-  for (int t = 0; t < tok.size(); t++)
-    P.push_back(tok[t]);
-  cout << "  * #pop to be analysed: " << P.size() << endl;
-  for (int s = 0; s < SM.size(); s++) {
-    if (!getline(fdf, buffer, '\n')) {
-      cerr << "Frequency file must contain same number of lines than "
-              "validation data + 1 (not enough lines)" << endl;
-      exit(1);
-    }
+  if (freq != nullptr) {
+    cout << "Reading frequencies in [" << freq << "]" << endl;
+
+    ifile fdf(freq);
+    getline(fdf, buffer, '\n');
     tok = sutils::tokenize(buffer, " ");
     for (int t = 0; t < tok.size(); t++)
-      SM.VS[s]->frq.push_back(atof(tok[t].c_str()));
-  }
-  if (getline(fdf, buffer, '\n')) {
-    cerr << "Frequency file must contain same number of lines than validation "
-            "data + 1 (too much lines)" << endl;
-    exit(1);
-  }
-  fdf.close();
+      P.push_back(tok[t]);
+    cout << "  * #pop to be analysed: " << P.size() << endl;
+    for (int s = 0; s < SM.size(); s++) {
+      if (!getline(fdf, buffer, '\n')) {
+        cerr << "Frequency file must contain same number of lines than "
+                "validation data + 1 (not enough lines)" << endl;
+        exit(1);
+      }
+      tok = sutils::tokenize(buffer, " ");
+      for (int t = 0; t < tok.size(); t++)
+        SM.VS[s]->frq.push_back(atof(tok[t].c_str()));
+    }
+    if (getline(fdf, buffer, '\n')) {
+      cerr
+          << "Frequency file must contain same number of lines than validation "
+             "data + 1 (too much lines)" << endl;
+      exit(1);
+    }
+    fdf.close();
+  } else if (fmap != nullptr) {
+    cout << "Reading frequencies in [" << fmap << "]" << endl;
+
+    ifile fdf(fmap);
+    getline(fdf, buffer, '\n');
+    tok = sutils::tokenize(buffer, "\t");
+    for (int t = 4; t < tok.size(); t++)
+      P.push_back(tok[t]);
+    cout << "  * #pop to be analysed: " << P.size() << endl;
+    unsigned nFreqFound = 0;
+    while (getline(fdf, buffer, '\n')) {
+      tok = sutils::tokenize(buffer, "\t");
+      auto s = SM.get(tok[0], stoul(tok[1]), tok[2], tok[3]);
+      if (s) {
+        if (!SM.VS[s->idx]->frq.empty())
+          throw runtime_error(
+              "fmap file contains duplicate freq lines at site: " + buffer);
+        for (int t = 4; t < tok.size(); t++)
+          SM.VS[s->idx]->frq.push_back(stof(tok[t]));
+        ++nFreqFound;
+      }
+    }
+    if (nFreqFound != SM.size())
+      throw runtime_error("fmap only contains frequencies for " +
+                          to_string(nFreqFound) + " sites out of " +
+                          to_string(SM.size()) + " sites in validation data");
+
+    fdf.close();
+  } else
+    assert(false);
 
   // Reading Imputation Data
   cout << "Reading imputation data in [" << imputed << "]" << endl;
@@ -320,13 +367,12 @@ int main(int argc, char **argv) {
             atof(tok[i + 1].c_str()) + 2 * atof(tok[i + 2].c_str());
     }
 
-    if (i_site % 1000 == 0) {
-      cerr << "\r" << i_site;
-      cerr.flush();
-    }
+    if (i_site % 1000 == 0) 
+      cout << "\r" << i_site;
+
     i_site++;
   }
-  cerr << "\r" << i_site << endl;
+  cout << "\r" << i_site << endl;
   cout << "  * #site=" << i_site << endl;
   cout << "  * #imputed=" << n_imputed << endl;
   cout << "  * #genotyped=" << n_genotyped << endl;
@@ -400,7 +446,7 @@ int main(int argc, char **argv) {
             }
 
             if (mean_cnt == 0) {
-              cout << "Calculation aborded, number of validation genotypes = 0"
+              cerr << "Calculation aborded, number of validation genotypes = 0"
                    << endl;
             } else {
               cout << "\t[geno=" << mean_cnt << "]";

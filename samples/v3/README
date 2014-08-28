@@ -1,0 +1,14 @@
+###  README --- /ssh:feng:/homes/kretzsch/dev/feng/measureAggregateRsquared/samples/v3/
+
+## Copyright 2014 Warren Winfried Kretzschmar
+##
+## Author: wkretzsch@gmail.com
+## Keywords: 
+
+
+###########
+# Thu Aug 28 13:01:37 BST 2014
+
+paste <(echo -e "CHROM\tPOS\tREF\tALT"; zcat ../v2.0/mixedChrom/ALL.20130523.snps_indels.CGI.genotypes.nonGL.inRef.inGL.head1000.randChr.gen.gz | awk 'BEGIN{OFS="\t"}{print $1, $3,$4,$5}') ../v2.0/ALL.chr20.unionAC10NM.founders.B7.R1.P8.M30.K100.W500kb.inInt.inTruth.GL.head1000.freqs > ALL.chr20.unionAC10NM.founders.B7.R1.P8.M30.K100.W500kb.inInt.inTruth.GL.head1000.fmap
+
+
