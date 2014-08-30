@@ -14,18 +14,15 @@ public:
   int pos;
   string ref, alt;
   int idx;
-  bool flg;
+  char keepNum;
   int type;
   vector<float> frq;
 
-  site(string &c, int p, string &r, string &a, int i) {
-    chr = c;
-    pos = p;
-    ref = r;
-    alt = a;
-    idx = i;
-    flg = true;
-    type = 1;
+  explicit site(string &c, int p, string &r, string &a, int i)
+      : site(c, p, r, a, i, 1) {}
+
+  explicit site(string &c, int p, string &r, string &a, int i, char f)
+      : chr(c), pos(p), ref(r), alt(a), idx(i), keepNum(f), type(1) {
     if ((ref == "A" || ref == "T" || ref == "G" || ref == "C") &&
         (alt == "A" || alt == "T" || alt == "G" || alt == "C"))
       type = 0;
@@ -98,14 +95,17 @@ int main(int argc, char **argv) {
   char *fmap = nullptr;
   char *output = nullptr;
   char *bin = nullptr;
+  char keepNum = 0;
 
   // reading arguments
   for (int a = 1; a < argc; a++) {
     if (strcmp(argv[a], "--validation") == 0) {
       validation = argv[a + 1];
+      ++keepNum;
     };
     if (strcmp(argv[a], "--imputed") == 0) {
       imputed = argv[a + 1];
+      ++keepNum;
     };
     if (strcmp(argv[a], "--sample") == 0) {
       sample = argv[a + 1];
@@ -118,9 +118,11 @@ int main(int argc, char **argv) {
     };
     if (strcmp(argv[a], "--freq") == 0) {
       freq = argv[a + 1];
+      ++keepNum;
     };
     if (strcmp(argv[a], "--fmap") == 0) {
       fmap = argv[a + 1];
+      ++keepNum;
     };
     if (strcmp(argv[a], "--output") == 0) {
       output = argv[a + 1];
@@ -161,7 +163,7 @@ int main(int argc, char **argv) {
   } else if (freq != nullptr)
     cout << "Frequencies:\t" << freq << endl;
   else if (fmap != nullptr)
-      cout << "Frequencies:\t" << fmap << endl;
+    cout << "Frequencies:\t" << fmap << endl;
   else {
     cerr << "Argument --freq or --fmap missing!" << endl;
     exit(1);
@@ -190,7 +192,7 @@ int main(int argc, char **argv) {
       tok = sutils::tokenize(buffer, "\t");
       if (tok.size() != 2)
         throw runtime_error(
-            "--include file " + string(include[e]) +
+            "--exclude file " + string(include[e]) +
             " does not contain sites in 'chrom\tposition' format");
       EXC.insert(pair<string, int>(tok[0], stoi(tok[1])));
     }
@@ -266,10 +268,17 @@ int main(int argc, char **argv) {
     auto itE = EXC.find(make_pair(chr, pos));
     auto itI = INC.find(make_pair(chr, pos));
 
-    site *s = new site(chr, pos, tok[3], tok[4], SM.size());
+    // don't bother storing sites that we don't want to keep
+    char flag = 1;
     if ((!INC.empty() && itI == INC.end()) ||
-        (!EXC.empty() && itE != EXC.end()))
-      s->flg = false;
+        (!EXC.empty() && itE != EXC.end())) {
+      if (fmap != nullptr)
+        continue;
+      else
+        flag = 0;
+    }
+
+    site *s = new site(chr, pos, tok[3], tok[4], SM.size(), flag);
     SM.push(s);
     DV.push_back(vector<float>(n_ind, -1.0));
     for (int i = 5; i < tok.size(); i += 3) {
@@ -280,7 +289,7 @@ int main(int argc, char **argv) {
         DV.back()[(i - 5) / 3] = g1 + 2 * g2;
     }
     if (i_site % 1000 == 0) {
-        cout << "\r" << i_site;
+      cout << "\r" << i_site;
     }
     i_site++;
   }
@@ -290,6 +299,7 @@ int main(int argc, char **argv) {
 
   // Reading Frequencies
   vector<string> P;
+  P.reserve(SM.size());
   if (freq != nullptr) {
     cout << "Reading frequencies in [" << freq << "]" << endl;
 
@@ -308,6 +318,7 @@ int main(int argc, char **argv) {
       tok = sutils::tokenize(buffer, " ");
       for (int t = 0; t < tok.size(); t++)
         SM.VS[s]->frq.push_back(atof(tok[t].c_str()));
+      ++SM.VS[s]->keepNum;
     }
     if (getline(fdf, buffer, '\n')) {
       cerr
@@ -326,23 +337,23 @@ int main(int argc, char **argv) {
       P.push_back(tok[t]);
     cout << "  * #pop to be analysed: " << P.size() << endl;
     unsigned nFreqFound = 0;
+    unsigned nFreq = 0;
     while (getline(fdf, buffer, '\n')) {
       tok = sutils::tokenize(buffer, "\t");
       auto s = SM.get(tok[0], stoul(tok[1]), tok[2], tok[3]);
       if (s) {
-        if (!SM.VS[s->idx]->frq.empty())
+        if (!s->frq.empty())
           throw runtime_error(
               "fmap file contains duplicate freq lines at site: " + buffer);
         for (int t = 4; t < tok.size(); t++)
-          SM.VS[s->idx]->frq.push_back(stof(tok[t]));
+          s->frq.push_back(stof(tok[t]));
         ++nFreqFound;
+        ++s->keepNum;
       }
+      ++nFreq;
     }
-    if (nFreqFound != SM.size())
-      throw runtime_error("fmap only contains frequencies for " +
-                          to_string(nFreqFound) + " sites out of " +
-                          to_string(SM.size()) + " sites in validation data");
-
+    cout << "  * #frequency sites found: " << nFreq << endl;
+    cout << "  * #frequency sites kept: " << nFreqFound << endl;
     fdf.close();
   } else
     assert(false);
@@ -350,8 +361,8 @@ int main(int argc, char **argv) {
   // Reading Imputation Data
   cout << "Reading imputation data in [" << imputed << "]" << endl;
   i_site = 0;
-  int n_imputed = 0;
-  int n_genotyped = 0;
+  int n_excluded = 0;
+  int n_kept = 0;
   vector<vector<float> > DI = DV;
   ifile fdi(imputed);
   while (getline(fdi, buffer, '\n')) {
@@ -360,22 +371,24 @@ int main(int argc, char **argv) {
 
     site *s = SM.get(tok[0], atoi(tok[2].c_str()), tok[3], tok[4]);
     if (s != nullptr) {
-      s->flg = true;
-      n_imputed++;
       for (int i = 5; i < tok.size(); i += 3)
         DI[s->idx][(i - 5) / 3] =
             atof(tok[i + 1].c_str()) + 2 * atof(tok[i + 2].c_str());
-    }
+      ++s->keepNum;
+      ++n_kept;
+    } else
+      ++n_excluded;
 
-    if (i_site % 1000 == 0) 
+    if (i_site % 1000 == 0)
       cout << "\r" << i_site;
 
     i_site++;
   }
+
   cout << "\r" << i_site << endl;
   cout << "  * #site=" << i_site << endl;
-  cout << "  * #imputed=" << n_imputed << endl;
-  cout << "  * #genotyped=" << n_genotyped << endl;
+  cout << "  * #included=" << n_kept << endl;
+  cout << "  * #excluded=" << n_excluded << endl;
   fdi.close();
 
   // Reading Bins
@@ -393,7 +406,7 @@ int main(int argc, char **argv) {
   int n_imp = 0;
   int n_cmp = 0;
   for (int s = 0; s < SM.size(); s++) {
-    if (SM.VS[s]->flg) {
+    if (SM.VS[s]->keepNum == keepNum) {
       if (SM.VS[s]->type == 0)
         n_snp++;
       else
@@ -401,7 +414,8 @@ int main(int argc, char **argv) {
       n_imp++;
     }
   }
-  cout << "  * #imputed=" << n_imp << endl;
+  cout << "  * #validation sites=" << SM.size() << endl;
+  cout << "  * #at which to compare r-square=" << n_imp << endl;
   cout << "  * #snp=" << n_snp << endl;
   cout << "  * #complex=" << n_cmp << endl;
 
@@ -431,7 +445,7 @@ int main(int argc, char **argv) {
             int mean_cnt = 0;
 
             for (int s = 0; s < SM.size(); s++) {
-              if (SM.VS[s]->flg && SM.VS[s]->type == t &&
+              if (SM.VS[s]->keepNum == keepNum && SM.VS[s]->type == t &&
                   SM.VS[s]->frq[p] > B[b - 1] && SM.VS[s]->frq[p] <= B[b]) {
                 mean_frq += SM.VS[s]->frq[p];
                 count_frq++;
@@ -460,7 +474,7 @@ int main(int argc, char **argv) {
               double std_exp = 0.0;
 
               for (int s = 0; s < SM.size(); s++) {
-                if (SM.VS[s]->flg && SM.VS[s]->type == t &&
+                if (SM.VS[s]->keepNum == keepNum && SM.VS[s]->type == t &&
                     SM.VS[s]->frq[p] > B[b - 1] && SM.VS[s]->frq[p] <= B[b]) {
                   for (int i = 0; i < I.size(); i++) {
                     if (DV[s][I[i]] >= 0) {
@@ -480,7 +494,7 @@ int main(int argc, char **argv) {
               // Calculate Rsquared
               double sum = 0.0;
               for (int s = 0; s < SM.size(); s++) {
-                if (SM.VS[s]->flg && SM.VS[s]->type == t &&
+                if (SM.VS[s]->keepNum == keepNum && SM.VS[s]->type == t &&
                     SM.VS[s]->frq[p] > B[b - 1] && SM.VS[s]->frq[p] <= B[b]) {
                   for (int i = 0; i < I.size(); i++) {
                     if (DV[s][I[i]] >= 0) {

@@ -17,7 +17,8 @@ LCL3S= -Wl,-Bstatic -lz -lbz2 -Wl,-Bdynamic -lm -lpthread
 LBAMD= -lbam -lz
 
 #executable file
-EFILE= bin/measureAggregateRsquared
+EFILE:= bin/measureAggregateRsquared
+EDFILE:=bin/measureAggregateRsquared.dbg
 
 #header files
 HFILE= $(shell find src -name *.h)
@@ -53,7 +54,7 @@ dynamic: $(EFILE)
 test: CFLAG=$(CDEBG) $(CWARN) $(CSHV1) $(CDEBG)
 test: LFLAG=$(LDEBG) $(LSTDD)
 test: IFLAG=$(ISTDP)
-test: $(EFILE)
+test: $(EDFILE)
 
 #static release
 static: CFLAG=$(COPTI) $(CWARN) $(CSHV1)
@@ -71,13 +72,16 @@ cluster: $(EFILE)
 $(EFILE): $(OFILE)
 	$(CXX) $^ $(OBOST) -o $@ $(LFLAG)
 
+$(EDFILE): $(OFILE)
+	$(CXX) $^ $(OBOST) -o $@ $(LFLAG)
+
 obj/%.o: %.cpp $(HFILE)
 	$(CXX) -o $@ -c $< $(CFLAG) $(IFLAG)
 
 clean: 
-	rm -f obj/*.o $(EFILE)
+	rm -f obj/*.o $(EFILE) $(EDFILE)
 
-test: $(EFILE)
+test: $(EDFILE)
 	perl t/runtests.pl
 
 oxford:
