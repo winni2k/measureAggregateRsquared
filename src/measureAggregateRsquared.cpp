@@ -96,6 +96,7 @@ int main(int argc, char **argv) {
   char *output = nullptr;
   char *bin = nullptr;
   char keepNum = 0;
+  bool noMapDump = false;
 
   // reading arguments
   for (int a = 1; a < argc; a++) {
@@ -130,6 +131,9 @@ int main(int argc, char **argv) {
     if (strcmp(argv[a], "--bin") == 0) {
       bin = argv[a + 1];
     };
+    if (strcmp(argv[a], "--no-map-dump") == 0) {
+      noMapDump = true;
+    }
   }
 
   // checking arguments
@@ -419,6 +423,10 @@ int main(int argc, char **argv) {
   cout << "  * #snp=" << n_snp << endl;
   cout << "  * #complex=" << n_cmp << endl;
 
+  if (n_snp + n_cmp == 0)
+    throw runtime_error(
+        "No snps or complex variants were found to do an analysis on");
+
   // Measuring Aggregate Rsquared per population x type x bin
   vector<vector<vector<double> > > A = vector<vector<vector<double> > >(
       P.size(), vector<vector<double> >(2, vector<double>(n_bins - 1, -1.0)));
@@ -430,11 +438,23 @@ int main(int argc, char **argv) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
       vector<int> I = itS->second;
-      for (int t = 0; t < 2; t++) {
-        if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0)) {
+      for (int t = 0; t < 3; t++) { // t=2 means both snp and complex
+        if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0) ||
+            (t == 2 && n_snp + n_cmp > 0)) {
           for (int b = 1; b < n_bins; b++) {
             cout << "Rsquared\t[pop=" << P[p] << "]";
-            cout << "\t[type=" << ((t == 0) ? "SNPs]" : "COMPLEXs]");
+            cout << "\t[type=";
+            switch (t) {
+            case 0:
+              cout << "SNPs]";
+              break;
+            case 1:
+              cout << "COMPLEXs]";
+              break;
+            case 2:
+              cout << "ALL]";
+              break;
+            }
             cout << "\t[bin=" << sutils::double2str(B[b], 3) << "]";
 
             // Calculate Means
@@ -445,7 +465,8 @@ int main(int argc, char **argv) {
             int mean_cnt = 0;
 
             for (int s = 0; s < SM.size(); s++) {
-              if (SM.VS[s]->keepNum == keepNum && SM.VS[s]->type == t &&
+              if (SM.VS[s]->keepNum == keepNum &&
+                  (t == 2 || SM.VS[s]->type == t) &&
                   SM.VS[s]->frq[p] > B[b - 1] && SM.VS[s]->frq[p] <= B[b]) {
                 mean_frq += SM.VS[s]->frq[p];
                 count_frq++;
@@ -474,7 +495,8 @@ int main(int argc, char **argv) {
               double std_exp = 0.0;
 
               for (int s = 0; s < SM.size(); s++) {
-                if (SM.VS[s]->keepNum == keepNum && SM.VS[s]->type == t &&
+                if (SM.VS[s]->keepNum == keepNum &&
+                    (t == 2 || SM.VS[s]->type == t) &&
                     SM.VS[s]->frq[p] > B[b - 1] && SM.VS[s]->frq[p] <= B[b]) {
                   for (int i = 0; i < I.size(); i++) {
                     if (DV[s][I[i]] >= 0) {
@@ -494,7 +516,8 @@ int main(int argc, char **argv) {
               // Calculate Rsquared
               double sum = 0.0;
               for (int s = 0; s < SM.size(); s++) {
-                if (SM.VS[s]->keepNum == keepNum && SM.VS[s]->type == t &&
+                if (SM.VS[s]->keepNum == keepNum &&
+                    (t == 2 || SM.VS[s]->type == t) &&
                     SM.VS[s]->frq[p] > B[b - 1] && SM.VS[s]->frq[p] <= B[b]) {
                   for (int i = 0; i < I.size(); i++) {
                     if (DV[s][I[i]] >= 0) {
@@ -526,13 +549,21 @@ int main(int argc, char **argv) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
       vector<int> I = itS->second;
-      for (int t = 0; t < 2; t++) {
-        if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0)) {
+      for (int t = 0; t < 3; t++) {
+        if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0) ||
+            (t == 2 && n_snp + n_cmp > 0)) {
           string filename = string(output) + "." + P[p];
-          if (t == 0)
+          switch (t) {
+          case 0:
             filename += ".snps";
-          else
+            break;
+          case 1:
             filename += ".complexs";
+            break;
+          case 2:
+            filename += ".all";
+            break;
+          }
 
           cout << "Writing results in [" << filename << "]" << endl;
           ofile fdo(filename.c_str());
@@ -540,6 +571,17 @@ int main(int argc, char **argv) {
             fdo << D[p][t][b - 1] << " " << A[p][t][b - 1] << " "
                 << F[p][t][b - 1] << endl;
           fdo.close();
+
+          // write map of sites used
+          if (!noMapDump) {
+            string mapFile = filename + ".map";
+            ofile fdmap(mapFile.c_str());
+            for (auto s : SM.VS)
+              if (s->keepNum == keepNum && (t == 2 || s->type == t))
+                fdmap << s->chr << "\t" << to_string(s->pos) << "\t" << s->ref
+                      << "\t" << s->alt << "\n";
+            fdmap.close();
+          }
         }
       }
     }

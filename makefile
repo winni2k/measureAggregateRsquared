@@ -16,9 +16,15 @@ LSTDS= -Wl,-Bstatic -lboost_iostreams -lz -lbz2 -Wl,-Bdynamic -lm -lpthread
 LCL3S= -Wl,-Bstatic -lz -lbz2 -Wl,-Bdynamic -lm -lpthread
 LBAMD= -lbam -lz
 
+#versions
+VMAJ = $(shell grep VERSION_MAJOR src/version.h | cut -f3 -d' ')
+VMIN = $(shell grep VERSION_MINOR src/version.h | cut -f3 -d' ')
+
 #executable file
-EFILE:= bin/measureAggregateRsquared
-EDFILE:=bin/measureAggregateRsquared.dbg
+EFBASE:=bin/measureAggregateRsquared
+EFILE:= $(EFBASE).$(VMAJ).$(VMIN)
+EDFILE:=$(EFBASE).$(VMAJ).$(VMIN).dbg
+
 
 #header files
 HFILE= $(shell find src -name *.h)
@@ -71,9 +77,11 @@ cluster: $(EFILE)
 
 $(EFILE): $(OFILE)
 	$(CXX) $^ $(OBOST) -o $@ $(LFLAG)
+	rm -f $(EFBASE) && ln -s $(shell basename $@) $(EFBASE)
 
 $(EDFILE): $(OFILE)
 	$(CXX) $^ $(OBOST) -o $@ $(LFLAG)
+	rm -f $(EFBASE).dbg && ln -s $(shell basename $@) $(EFBASE).dbg
 
 obj/%.o: %.cpp $(HFILE)
 	$(CXX) -o $@ -c $< $(CFLAG) $(IFLAG)
@@ -85,7 +93,8 @@ test: $(EDFILE)
 	perl t/runtests.pl
 
 oxford:
-	cp $(EFILE) ~/bin/.
+	cp $(EFILE) ~/bin/
+	rm -f ~/$(EFBASE) && ln -s $(shell basename $(EFILE)) ~/bin/$(shell basename $(EFBASE)) 
 
 install:
 	cp $(EFILE) /usr/local/bin/.
