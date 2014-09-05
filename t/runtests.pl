@@ -7,5 +7,6 @@ use TAP::Harness;
 my $harness = TAP::Harness->new();
 my $tests   = qx/find . -name "*.t"/;
 my @tests   = split( /\s+/, $tests );
+@tests = sort @tests;
 $harness->runtests(@tests);
 

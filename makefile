@@ -21,7 +21,8 @@ VMAJ = $(shell grep VERSION_MAJOR src/version.h | cut -f3 -d' ')
 VMIN = $(shell grep VERSION_MINOR src/version.h | cut -f3 -d' ')
 
 #executable file
-EFBASE:=bin/measureAggregateRsquared
+BNAME=measureAggregateRsquared
+EFBASE:=bin/$(BNAME)
 EFILE:= $(EFBASE).$(VMAJ).$(VMIN)
 EDFILE:=$(EFBASE).$(VMAJ).$(VMIN).dbg
 
@@ -92,9 +93,9 @@ clean:
 test: $(EDFILE)
 	perl t/runtests.pl
 
-oxford:
-	cp $(EFILE) ~/bin/
-	rm -f ~/$(EFBASE) && ln -s $(shell basename $(EFILE)) ~/bin/$(shell basename $(EFBASE)) 
+oxford: $(EFILE)
+	install $< ~/bin/
+	cd ~/bin && rm -f $(BNAME) && ln -s $(shell basename $<) $(BNAME)
 
 install:
 	cp $(EFILE) /usr/local/bin/.
