@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <boost/functional/hash.hpp>
 #include <version.h>
+#include <cfloat>
 
 static_assert(
     __cplusplus >= 201103L,
@@ -97,6 +98,7 @@ int main(int argc, char **argv) {
   char *bin = nullptr;
   char keepNum = 0;
   bool noMapDump = false;
+  bool discardFrqDoubles = false;
 
   // reading arguments
   for (int a = 1; a < argc; a++) {
@@ -133,6 +135,9 @@ int main(int argc, char **argv) {
     };
     if (strcmp(argv[a], "--no-map-dump") == 0) {
       noMapDump = true;
+    }
+    if (strcmp(argv[a], "--discard-fmap-doubles") == 0) {
+      discardFrqDoubles = true;
     }
   }
 
@@ -346,9 +351,17 @@ int main(int argc, char **argv) {
       tok = sutils::tokenize(buffer, "\t");
       auto s = SM.get(tok[0], stoul(tok[1]), tok[2], tok[3]);
       if (s) {
-        if (!s->frq.empty())
-          throw runtime_error(
-              "fmap file contains duplicate freq lines at site: " + buffer);
+
+        // if the freq file contains sites more than once, then throw them out
+        // or die
+        if (!s->frq.empty()) {
+          if (discardFrqDoubles) {
+            --s->keepNum;
+            continue;
+          } else
+            throw runtime_error(
+                "fmap file contains duplicate freq lines at site: " + buffer);
+        }
         for (int t = 4; t < tok.size(); t++)
           s->frq.push_back(stof(tok[t]));
         ++nFreqFound;
@@ -403,6 +416,13 @@ int main(int argc, char **argv) {
     B.push_back(atof(buffer.c_str()));
   fdb.close();
   int n_bins = B.size();
+  if (n_bins < 2)
+    throw runtime_error(
+        "Please specify at least two boundaries in the bins file");
+
+  assert(B[0] <= 1 && B[0] >= 0);
+  B[0] -= DBL_EPSILON;
+
   cout << "  * #bins=" << n_bins - 1 << endl;
 
   cout << "Summarizing data" << endl;
@@ -427,18 +447,24 @@ int main(int argc, char **argv) {
     throw runtime_error(
         "No snps or complex variants were found to do an analysis on");
 
+  set<int> countedSites;
+
   // Measuring Aggregate Rsquared per population x type x bin
+  const int numTypes = 3;
   vector<vector<vector<double> > > A = vector<vector<vector<double> > >(
-      P.size(), vector<vector<double> >(2, vector<double>(n_bins - 1, -1.0)));
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
   vector<vector<vector<double> > > D = vector<vector<vector<double> > >(
-      P.size(), vector<vector<double> >(2, vector<double>(n_bins - 1, -1.0)));
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
   vector<vector<vector<double> > > F = vector<vector<vector<double> > >(
-      P.size(), vector<vector<double> >(2, vector<double>(n_bins - 1, -1.0)));
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
   for (int p = 0; p < P.size(); p++) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
       vector<int> I = itS->second;
-      for (int t = 0; t < 3; t++) { // t=2 means both snp and complex
+      for (int t = 0; t < numTypes; t++) { // t=2 means both snp and complex
         if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0) ||
             (t == 2 && n_snp + n_cmp > 0)) {
           for (int b = 1; b < n_bins; b++) {
@@ -468,6 +494,7 @@ int main(int argc, char **argv) {
               if (SM.VS[s]->keepNum == keepNum &&
                   (t == 2 || SM.VS[s]->type == t) &&
                   SM.VS[s]->frq[p] > B[b - 1] && SM.VS[s]->frq[p] <= B[b]) {
+                countedSites.insert(s);
                 mean_frq += SM.VS[s]->frq[p];
                 count_frq++;
                 for (int i = 0; i < I.size(); i++) {
@@ -549,7 +576,7 @@ int main(int argc, char **argv) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
       vector<int> I = itS->second;
-      for (int t = 0; t < 3; t++) {
+      for (int t = 0; t < numTypes; t++) {
         if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0) ||
             (t == 2 && n_snp + n_cmp > 0)) {
           string filename = string(output) + "." + P[p];
@@ -575,11 +602,15 @@ int main(int argc, char **argv) {
           // write map of sites used
           if (!noMapDump) {
             string mapFile = filename + ".map";
+            cout << "Writing map of all compared sites to [" << mapFile << "]"
+                 << endl;
             ofile fdmap(mapFile.c_str());
-            for (auto s : SM.VS)
-              if (s->keepNum == keepNum && (t == 2 || s->type == t))
-                fdmap << s->chr << "\t" << to_string(s->pos) << "\t" << s->ref
-                      << "\t" << s->alt << "\n";
+            for (auto sNum : countedSites) {
+              auto s = SM.VS[sNum];
+              assert(s);
+              fdmap << s->chr << "\t" << to_string(s->pos) << "\t" << s->ref
+                    << "\t" << s->alt << "\n";
+            }
             fdmap.close();
           }
         }
