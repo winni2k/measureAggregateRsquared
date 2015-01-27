@@ -17,4 +17,12 @@ my $truth = "$Bin/../samples/05/MARv0.1.EUR.snps";
 my $cmd = "$Bin/../bin/measureAggregateRsquared.dbg --validation $sampDir/ALL.20130523.snps_indels.CGI.genotypes.nonGL.inRef.inGL.head1000.chr20.gen.gz --imputed $sampDir/ALL.20130523.snps_indels.CGI.genotypes.nonGL.inRef.inGL.inChip.impute2.notInChip.head500.chr20.gen.gz --sample $sampDir/CGI2.ILLU1M.sample --freq $sampDir/ALL.chr20.unionAC10NM.founders.B7.R1.P8.M30.K100.W500kb.inInt.inTruth.GL.head1000.freqs --bin $sampDir/olivierBins.txt --output $tempDir/test";
 print "Running: $cmd\n";
 system($cmd);
-compare_ok($truth, "$tempDir/test.EUR.snps", "chr20 results OK");
+compare_filter_ok($truth, "$tempDir/test.EUR.snps", \&keepCols,"chr20 results OK");
+
+
+sub keepCols {
+    my $line = shift;
+    $line =~ m/^(\S+\s\S+\s\S+)/;
+    return $1;
+}
+

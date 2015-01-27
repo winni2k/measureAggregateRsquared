@@ -20,10 +20,18 @@ print STDOUT "Running: $cmd";
 system($cmd);
 
 my $truthALL = "$Bin/../samples/05/MARv0.7.EUR.all";
-compare_ok( "$tempDir/test.EUR.snps", $truth, "simple chr20 results OK" );
-compare_ok( "$tempDir/test.EUR.snps.map", "$truthALL.map",
+compare_filter_ok( "$tempDir/test.EUR.snps", $truth, \&keepCols,
+    "simple chr20 results OK" );
+compare_filter_ok( "$tempDir/test.EUR.snps.map", "$truthALL.map", \&keepCols,
     "simple chr20 map OK" );
 
-compare_ok( "$tempDir/test.EUR.all", "$truth", "simple chr20 ALL OK" );
-compare_ok( "$tempDir/test.EUR.all.map", "$truthALL.map",
+compare_filter_ok( "$tempDir/test.EUR.all", "$truth", \&keepCols,
+    "simple chr20 ALL OK" );
+compare_filter_ok( "$tempDir/test.EUR.all.map", "$truthALL.map", \&keepCols,
     "simple chr20 ALL map OK" );
+
+sub keepCols {
+    my $line = shift;
+    $line =~ m/^(\S+\s\S+\s\S+)/;
+    return $1;
+}
