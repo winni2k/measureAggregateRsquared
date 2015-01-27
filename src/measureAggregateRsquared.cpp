@@ -59,7 +59,7 @@ public:
     // grab the correct map based on chromosome input
     auto chrMMapItr = MS.find(chr);
     if (chrMMapItr == MS.end())
-      throw runtime_error("Could not find chromosome: " + chr);
+      return nullptr;
 
     // grab the positions on the chromosome that match
     auto ret = chrMMapItr->second.equal_range(pos);
@@ -97,6 +97,7 @@ int main(int argc, char **argv) {
   char *bin = nullptr;
   char keepNum = 0;
   bool noMapDump = false;
+  double threshold = 0.9;
 
   // reading arguments
   for (int a = 1; a < argc; a++) {
@@ -133,6 +134,11 @@ int main(int argc, char **argv) {
     };
     if (strcmp(argv[a], "--no-map-dump") == 0) {
       noMapDump = true;
+    }
+    if (strcmp(argv[a], "--gprob-threshold") == 0) {
+      threshold = stod(string(argv[a + 1]));
+      if (threshold < 0 || threshold > 1)
+        throw runtime_error("--gprob-threshold must be in the range [0,1]");
     }
   }
 
@@ -185,6 +191,8 @@ int main(int argc, char **argv) {
     cerr << "Argument --output missing!" << endl;
     exit(1);
   }
+  cout << "Only comparing genotype probabilities with max probability >= "
+       << threshold << endl;
   cout << endl;
 
   // Reading Exclusion
@@ -289,7 +297,7 @@ int main(int argc, char **argv) {
       double g0 = atof(tok[i + 0].c_str());
       double g1 = atof(tok[i + 1].c_str());
       double g2 = atof(tok[i + 2].c_str());
-      if (g0 >= 0.9 || g1 >= 0.9 || g2 >= 0.9)
+      if (g0 >= threshold || g1 >= threshold || g2 >= threshold)
         DV.back()[(i - 5) / 3] = g1 + 2 * g2;
     }
     if (i_site % 1000 == 0) {
@@ -428,17 +436,21 @@ int main(int argc, char **argv) {
         "No snps or complex variants were found to do an analysis on");
 
   // Measuring Aggregate Rsquared per population x type x bin
+  const int numTypes = 3;
   vector<vector<vector<double> > > A = vector<vector<vector<double> > >(
-      P.size(), vector<vector<double> >(2, vector<double>(n_bins - 1, -1.0)));
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
   vector<vector<vector<double> > > D = vector<vector<vector<double> > >(
-      P.size(), vector<vector<double> >(2, vector<double>(n_bins - 1, -1.0)));
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
   vector<vector<vector<double> > > F = vector<vector<vector<double> > >(
-      P.size(), vector<vector<double> >(2, vector<double>(n_bins - 1, -1.0)));
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
   for (int p = 0; p < P.size(); p++) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
       vector<int> I = itS->second;
-      for (int t = 0; t < 3; t++) { // t=2 means both snp and complex
+      for (int t = 0; t < numTypes; t++) { // t=2 means both snp and complex
         if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0) ||
             (t == 2 && n_snp + n_cmp > 0)) {
           for (int b = 1; b < n_bins; b++) {
@@ -463,6 +475,8 @@ int main(int argc, char **argv) {
             double mean_ref = 0.0;
             double mean_exp = 0.0;
             int mean_cnt = 0;
+            unsigned failed_threshold = 0;
+            unsigned out_of_bin = 0;
 
             for (int s = 0; s < SM.size(); s++) {
               if (SM.VS[s]->keepNum == keepNum &&
@@ -475,11 +489,15 @@ int main(int argc, char **argv) {
                     mean_ref += DV[s][I[i]];
                     mean_exp += DI[s][I[i]];
                     mean_cnt++;
-                  }
+                  } else
+                    ++failed_threshold;
                 }
-              }
+              } else if (SM.VS[s]->keepNum == keepNum)
+                ++out_of_bin;
             }
-
+            if (t == 2)
+              assert(mean_cnt + failed_threshold + out_of_bin * I.size() ==
+                     n_imp * I.size());
             if (mean_cnt == 0) {
               cerr << "Calculation aborded, number of validation genotypes = 0"
                    << endl;
@@ -489,6 +507,8 @@ int main(int argc, char **argv) {
               mean_exp /= mean_cnt;
               cout << "\t[me_r=" << sutils::double2str(mean_ref, 4) << "]";
               cout << "\t[me_e=" << sutils::double2str(mean_exp, 4) << "]";
+              cout << "\t[gprob_thresh_excl=" << to_string(failed_threshold)
+                   << "]";
 
               // Calculate Standard Deviations
               double std_ref = 0.0;
@@ -549,7 +569,7 @@ int main(int argc, char **argv) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
       vector<int> I = itS->second;
-      for (int t = 0; t < 3; t++) {
+      for (int t = 0; t < numTypes; t++) {
         if ((t == 0 && n_snp > 0) || (t == 1 && n_cmp > 0) ||
             (t == 2 && n_snp + n_cmp > 0)) {
           string filename = string(output) + "." + P[p];
@@ -575,6 +595,8 @@ int main(int argc, char **argv) {
           // write map of sites used
           if (!noMapDump) {
             string mapFile = filename + ".map";
+            cout << "Writing map of sites compared in [" << mapFile << "]"
+                 << endl;
             ofile fdmap(mapFile.c_str());
             for (auto s : SM.VS)
               if (s->keepNum == keepNum && (t == 2 || s->type == t))
