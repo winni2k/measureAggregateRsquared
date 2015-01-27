@@ -99,6 +99,7 @@ int main(int argc, char **argv) {
   char keepNum = 0;
   bool noMapDump = false;
   bool discardFrqDoubles = false;
+  bool discardMonomorphic = false;
 
   // reading arguments
   for (int a = 1; a < argc; a++) {
@@ -139,6 +140,10 @@ int main(int argc, char **argv) {
     if (strcmp(argv[a], "--discard-fmap-doubles") == 0) {
       discardFrqDoubles = true;
     }
+    if (strcmp(argv[a], "--discard-monomorphic") == 0) {
+        discardMonomorphic = true;
+    };
+
   }
 
   // checking arguments
@@ -421,7 +426,8 @@ int main(int argc, char **argv) {
         "Please specify at least two boundaries in the bins file");
 
   assert(B[0] <= 1 && B[0] >= 0);
-  B[0] -= DBL_EPSILON;
+  if(!discardMonomorphic && B[0] == 0)
+      B[0] -= DBL_EPSILON;
 
   cout << "  * #bins=" << n_bins - 1 << endl;
 
@@ -460,6 +466,12 @@ int main(int argc, char **argv) {
   vector<vector<vector<double> > > F = vector<vector<vector<double> > >(
       P.size(),
       vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
+
+  // aggregate allele frequency of validation data in each bin
+  vector<vector<vector<double> > > FV = vector<vector<vector<double> > >(
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
+  
   for (int p = 0; p < P.size(); p++) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
@@ -558,6 +570,10 @@ int main(int argc, char **argv) {
               A[p][t][b - 1] = sum * sum;
               D[p][t][b - 1] = mean_frq / count_frq;
               F[p][t][b - 1] = count_frq;
+              FV[p][t][b - 1] =
+                  mean_ref /
+                  2; // average dose over 2 == validation allele frequency
+
               cout << "\t[site=" << count_frq << "]";
               cout << "\t[frq=" << sutils::double2str(mean_frq / count_frq, 4)
                    << "]";
@@ -596,7 +612,7 @@ int main(int argc, char **argv) {
           ofile fdo(filename.c_str());
           for (int b = 1; b < n_bins; b++)
             fdo << D[p][t][b - 1] << " " << A[p][t][b - 1] << " "
-                << F[p][t][b - 1] << endl;
+                << F[p][t][b - 1] << " " << FV[p][t][b - 1] << endl;
           fdo.close();
 
           // write map of sites used
