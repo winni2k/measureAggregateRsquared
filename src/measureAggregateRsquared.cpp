@@ -100,16 +100,17 @@ int main(int argc, char **argv) {
   bool noMapDump = false;
   bool discardFrqDoubles = false;
   bool discardMonomorphic = false;
+  bool ignoreSecondFrqDouble = false;
 
   // reading arguments
   for (int a = 1; a < argc; a++) {
     if (strcmp(argv[a], "--validation") == 0) {
       validation = argv[a + 1];
-      ++keepNum;
+      keepNum |= 1;
     };
     if (strcmp(argv[a], "--imputed") == 0) {
       imputed = argv[a + 1];
-      ++keepNum;
+      keepNum |= 2;
     };
     if (strcmp(argv[a], "--sample") == 0) {
       sample = argv[a + 1];
@@ -122,11 +123,11 @@ int main(int argc, char **argv) {
     };
     if (strcmp(argv[a], "--freq") == 0) {
       freq = argv[a + 1];
-      ++keepNum;
+      keepNum |= 4;
     };
     if (strcmp(argv[a], "--fmap") == 0) {
       fmap = argv[a + 1];
-      ++keepNum;
+      keepNum |= 4;
     };
     if (strcmp(argv[a], "--output") == 0) {
       output = argv[a + 1];
@@ -140,11 +141,14 @@ int main(int argc, char **argv) {
     if (strcmp(argv[a], "--discard-fmap-doubles") == 0) {
       discardFrqDoubles = true;
     }
+    if (strcmp(argv[a], "--ignore-second-fmap-double") == 0) {
+      ignoreSecondFrqDouble = true;
+    }
     if (strcmp(argv[a], "--discard-monomorphic") == 0) {
-        discardMonomorphic = true;
+      discardMonomorphic = true;
     };
-
   }
+  assert(keepNum == 7);
 
   // checking arguments
   cout << endl;
@@ -332,7 +336,7 @@ int main(int argc, char **argv) {
       tok = sutils::tokenize(buffer, " ");
       for (int t = 0; t < tok.size(); t++)
         SM.VS[s]->frq.push_back(atof(tok[t].c_str()));
-      ++SM.VS[s]->keepNum;
+      SM.VS[s]->keepNum |= 4;
     }
     if (getline(fdf, buffer, '\n')) {
       cerr
@@ -361,16 +365,18 @@ int main(int argc, char **argv) {
         // or die
         if (!s->frq.empty()) {
           if (discardFrqDoubles) {
-            --s->keepNum;
+              s->keepNum = 0;
             continue;
-          } else
+          } else if (ignoreSecondFrqDouble)
+            continue;
+          else
             throw runtime_error(
                 "fmap file contains duplicate freq lines at site: " + buffer);
         }
         for (int t = 4; t < tok.size(); t++)
           s->frq.push_back(stof(tok[t]));
         ++nFreqFound;
-        ++s->keepNum;
+        s->keepNum |= 4;
       }
       ++nFreq;
     }
@@ -396,7 +402,7 @@ int main(int argc, char **argv) {
       for (int i = 5; i < tok.size(); i += 3)
         DI[s->idx][(i - 5) / 3] =
             atof(tok[i + 1].c_str()) + 2 * atof(tok[i + 2].c_str());
-      ++s->keepNum;
+      s->keepNum |= 2;
       ++n_kept;
     } else
       ++n_excluded;
@@ -426,8 +432,8 @@ int main(int argc, char **argv) {
         "Please specify at least two boundaries in the bins file");
 
   assert(B[0] <= 1 && B[0] >= 0);
-  if(!discardMonomorphic && B[0] == 0)
-      B[0] -= DBL_EPSILON;
+  if (!discardMonomorphic && B[0] == 0)
+    B[0] -= DBL_EPSILON;
 
   cout << "  * #bins=" << n_bins - 1 << endl;
 
@@ -471,7 +477,7 @@ int main(int argc, char **argv) {
   vector<vector<vector<double> > > FV = vector<vector<vector<double> > >(
       P.size(),
       vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
-  
+
   for (int p = 0; p < P.size(); p++) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
