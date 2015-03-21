@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
       tok = sutils::tokenize(buffer, "\t");
       if (tok.size() != 2)
         throw runtime_error(
-            "--exclude file " + string(include[e]) +
+            "--exclude file " + string(exclude[e]) +
             " does not contain sites in 'chrom\tposition' format");
       EXC.insert(pair<string, int>(tok[0], stoi(tok[1])));
     }
