@@ -474,10 +474,16 @@ int main(int argc, char **argv) {
       vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
 
   // aggregate allele frequency of validation data in each bin
-  vector<vector<vector<double> > > FV = vector<vector<vector<double> > >(
+  vector<vector<vector<double> > > freqs_validation = vector<vector<vector<double> > >(
       P.size(),
       vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
 
+  // aggregate allele frequency of imputed data in each bin
+  vector<vector<vector<double> > > freqs_imputed = vector<vector<vector<double> > >(
+      P.size(),
+      vector<vector<double> >(numTypes, vector<double>(n_bins - 1, -1.0)));
+  
+  
   for (int p = 0; p < P.size(); p++) {
     map<string, vector<int> >::iterator itS = S.find(P[p]);
     if (itS != S.end()) {
@@ -526,7 +532,7 @@ int main(int argc, char **argv) {
             }
 
             if (mean_cnt == 0) {
-              cerr << "Calculation aborded, number of validation genotypes = 0"
+              cerr << "Calculation aborted, number of validation genotypes = 0"
                    << endl;
             } else {
               cout << "\t[geno=" << mean_cnt << "]";
@@ -576,8 +582,11 @@ int main(int argc, char **argv) {
               A[p][t][b - 1] = sum * sum;
               D[p][t][b - 1] = mean_frq / count_frq;
               F[p][t][b - 1] = count_frq;
-              FV[p][t][b - 1] =
+              freqs_validation[p][t][b - 1] =
                   mean_ref /
+                  2; // average dose over 2 == validation allele frequency
+              freqs_imputed[p][t][b - 1] =
+                  mean_exp /
                   2; // average dose over 2 == validation allele frequency
 
               cout << "\t[site=" << count_frq << "]";
@@ -615,10 +624,12 @@ int main(int argc, char **argv) {
           }
 
           cout << "Writing results in [" << filename << "]" << endl;
+          cout << "header is:\nBin_frequency\tr_square\tnum_genotypes\tfreq_validation\tfreq_imputation" << endl;
           ofile fdo(filename.c_str());
           for (int b = 1; b < n_bins; b++)
             fdo << D[p][t][b - 1] << " " << A[p][t][b - 1] << " "
-                << F[p][t][b - 1] << " " << FV[p][t][b - 1] << endl;
+                << F[p][t][b - 1] << " " << freqs_validation[p][t][b - 1] << " "
+                << freqs_imputed[p][t][b - 1] << endl;
           fdo.close();
 
           // write map of sites used
