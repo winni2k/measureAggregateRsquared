@@ -5,7 +5,11 @@ measureAggregateRsquared measures aggregate r squared from imputed gen files
 
 Here is a sample command line:
 
-`measureAggregateRsquared --validation truth.gen.gz --imputed imputed.gen.gz --samples truth_and_imputed.samples --freq allele_frequencies_of_imputed_sites.freq --bin allele_frequency_bins.txt --output output_base`
+```bash
+measureAggregateRsquared --validation truth.gen.gz --imputed imputed.gen.gz \
+--samples truth_and_imputed.samples --freq allele_frequencies_of_imputed_sites.freq \
+--bin allele_frequency_bins.txt --output output_base
+```
 
 Make sure the truth and imputed gen files contain the same samples in the same order, which is defined in the .samples file. 
 
