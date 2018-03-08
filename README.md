@@ -25,8 +25,11 @@ Please raise a ticket on the [github page](https://github.com/winni2k/measureAgg
 Input file formatting
 ---------------------
 
-sample .samples file
-~~~~~~~~~~~~~~~~~~~~
+The `--validation` and `--imputed` input files are [Impute2 .gen](https://mathgen.stats.ox.ac.uk/genetics_software/shapeit/shapeit.html#gensample) files.  
+Below are a set of examples for the other input files.
+
+### .samples file
+
 comparison is by population, multiple populations allowed...
 
     ID_1 ID_2 missing pop
@@ -34,8 +37,8 @@ comparison is by population, multiple populations allowed...
     NA07346 NA07346 0 EUR
     NA11832 NA11832 0 EUR
 
-sample frequencies file
-~~~~~~~~~~~~~~~~~~~~~~~
+### frequencies file
+
 Population is first line. After that, each line corresponds to the allele frequency in 
 that population in the truth.gen file.  Multiple columns, one for each population
 allowed.
@@ -45,8 +48,8 @@ allowed.
     0.02241
     0.3206
 
-sample bins txt
-~~~~~~~~~~~~~~~
+### bins file
+
 Each line defines a boundary of bins.  
 Whether or not the first boundary is included can be changed using the "--discard-monomorphic" flag (I think).
 
