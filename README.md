@@ -20,7 +20,7 @@ This code was written by Olivier Delaneau and Warren Kretzschmar.  The maintaine
 
 Bug reports and questions
 ------------------------
-Please raise a ticket on the [github page](https://github.com/winni2k/measureAggregateRsquared/issues).
+Please raise an issue on the [github page](https://github.com/winni2k/measureAggregateRsquared/issues).
 
 Input file formatting
 ---------------------
