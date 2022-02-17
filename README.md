@@ -64,10 +64,11 @@ Each output file will be written to:
 * `<outfix>.<POP>.complexs`
 * `<outfix>.<POP>.all`
 
-, where the suffix includes the type of variant being assessed.
+, where the suffix includes the type of variant being assessed as well as the population label of individuals. 
 
-Each output file has the following header attached:
-"Bin_frequency r_square num_genotypes freq_validation freq_imputation"
+Each output file is automatically tab separated and has the header: 
+
+`Bin_frequency r_square num_genotypes freq_validation freq_imputation`
 
 
 Testing
