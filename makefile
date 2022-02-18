@@ -91,7 +91,7 @@ clean:
 	rm -f obj/*.o $(EFILE) $(EDFILE)
 
 test: $(EDFILE)
-	cd t && perl runtests.pl
+	prove
 
 test-setup:
 	cpan install Test::More
