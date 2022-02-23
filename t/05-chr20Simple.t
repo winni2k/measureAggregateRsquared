@@ -32,6 +32,6 @@ compare_filter_ok( "$tempDir/test.EUR.all.map", "$truthALL.map", \&keepCols,
 
 sub keepCols {
     my $line = shift;
-    $line =~ m/^(\S+\s\S+\s\S+)/;
+    $line =~ m/^(\S+\t\S+\t\S+)/;
     return $1;
 }
