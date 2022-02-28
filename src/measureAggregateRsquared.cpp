@@ -624,7 +624,6 @@ int main(int argc, char **argv) {
           }
 
           cout << "Writing results in [" << filename << "]" << endl;
-          cout << "header is:\nBin_frequency\tr_square\tnum_genotypes\tfreq_validation\tfreq_imputation" << endl;
           ofile fdo(filename.c_str());
           fdo << "Bin_frequency\tr_square\tnum_genotypes\tfreq_validation\tfreq_imputation" << endl;
           for (int b = 1; b < n_bins; b++)
