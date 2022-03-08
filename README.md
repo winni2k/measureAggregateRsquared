@@ -57,7 +57,18 @@ Whether or not the first boundary is included can be changed using the "--discar
     0.005
     0.010
 
-output files are written to the output base
+### output files
+
+Each output file will be written to:
+* `<outfix>.<POP>.snps`
+* `<outfix>.<POP>.complexs`
+* `<outfix>.<POP>.all`
+
+, where the suffix includes the type of variant being assessed as well as the population label of individuals. 
+
+Each output file is automatically tab separated and has the header: 
+
+`Bin_frequency r_square num_genotypes freq_validation freq_imputation`
 
 
 Testing

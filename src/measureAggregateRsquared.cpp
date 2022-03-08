@@ -624,11 +624,11 @@ int main(int argc, char **argv) {
           }
 
           cout << "Writing results in [" << filename << "]" << endl;
-          cout << "header is:\nBin_frequency\tr_square\tnum_genotypes\tfreq_validation\tfreq_imputation" << endl;
           ofile fdo(filename.c_str());
+          fdo << "Bin_frequency\tr_square\tnum_genotypes\tfreq_validation\tfreq_imputation" << endl;
           for (int b = 1; b < n_bins; b++)
-            fdo << D[p][t][b - 1] << " " << A[p][t][b - 1] << " "
-                << F[p][t][b - 1] << " " << freqs_validation[p][t][b - 1] << " "
+            fdo << D[p][t][b - 1] << "\t" << A[p][t][b - 1] << "\t"
+                << F[p][t][b - 1] << "\t" << freqs_validation[p][t][b - 1] << "\t"
                 << freqs_imputed[p][t][b - 1] << endl;
           fdo.close();
 
